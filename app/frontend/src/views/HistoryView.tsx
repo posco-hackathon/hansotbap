@@ -18,7 +18,14 @@ export function HistoryView({ plans, tasks, contractor }: Props) {
   const [adjustments, setAdjustments] = useState<AdjustmentRecord[]>([]);
   const [conflicts, setConflicts] = useState<ConflictRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null); // CSV 복사 결과 (3초 뒤 사라진다)
   const taskOf = (id: string) => tasks.find((t) => t.id === id);
+
+  useEffect(() => {
+    if (!copied) return;
+    const t = window.setTimeout(() => setCopied(null), 3000);
+    return () => window.clearTimeout(t);
+  }, [copied]);
 
   useEffect(() => {
     Promise.all([api.adjustments({ contractor }), api.conflicts({ contractor, includeResolved: true })])
@@ -43,7 +50,15 @@ export function HistoryView({ plans, tasks, contractor }: Props) {
       ...sortedConflicts.map((r) => ["충돌", r.judged_at, "규칙 판정", `${r.conflict.id} ${r.conflict.grade} ${CF_STATUS[r.status]}`]),
     ];
     const text = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
-    void navigator.clipboard?.writeText(text);
+    // 눌러도 아무 표시가 없으면 복사됐는지 알 수 없다. clipboard 는 http 원격 주소에서는 없을 수 있다
+    if (!navigator.clipboard) {
+      setCopied("이 주소에서는 클립보드를 쓸 수 없습니다 — 엑셀 내보내기를 쓰세요");
+      return;
+    }
+    navigator.clipboard.writeText(text).then(
+      () => setCopied(`${rows.length - 1}줄 복사했습니다`),
+      () => setCopied("복사하지 못했습니다 — 엑셀 내보내기를 쓰세요"),
+    );
   };
 
   return (
@@ -59,9 +74,16 @@ export function HistoryView({ plans, tasks, contractor }: Props) {
         <span>
           충돌 열림 <b>{counts.open}</b> · 조정 적용 <b>{counts.adjusted}</b> · 해소 <b>{counts.resolved}</b>
         </span>
-        <button type="button" onClick={csv} className="ml-auto rounded border border-stone-300 px-2 py-1 text-xs hover:bg-stone-50">
-          CSV 복사
-        </button>
+        <span className="ml-auto flex items-center gap-2">
+          {copied && <span className="text-xs text-stone-500">{copied}</span>}
+          <button type="button" onClick={csv} className="rounded border border-stone-300 px-2 py-1 text-xs hover:bg-stone-50">
+            CSV 복사
+          </button>
+          {/* 서버가 같은 권한 범위로 만든 제64조 이행 기록 엑셀 (제출·판정·공유·조정·해소) */}
+          <a href={api.historyExportUrl(contractor)} download className="rounded border border-stone-300 px-2 py-1 text-xs hover:bg-stone-50">
+            엑셀 내보내기
+          </a>
+        </span>
       </div>
 
       <section className="rounded-lg bg-white p-4 shadow-sm">

@@ -1,8 +1,8 @@
 // 원청 대시보드(현재상황판): 상단 요약 + [현황판: 시간표형 간트 + 고로 3D] / [3D·충돌: scene3d] / [충돌 목록: 규칙·조문·원문·조정안] / [표준서 매칭]
-// TODO: 음성으로 묻기(F6), 위험 시간대 띠(F9), 협력사 공유(F5)
+// TODO: 음성으로 묻기(F6), 위험 시간대 띠(F9)
 import { useEffect, useMemo, useState } from "react";
 import { ConflictFilter, useConflictFilter } from "@/components/ConflictFilter";
-import { ConflictList } from "@/components/ConflictList";
+import { ConflictList, ShareBar } from "@/components/ConflictList";
 import { GradeBadge } from "@/components/ConflictBadge";
 import { SopMatchPanel } from "@/components/SopMatchPanel";
 import { TimetableGantt } from "@/components/TimetableGantt";
@@ -16,6 +16,7 @@ import { Scene3DTab } from "@/views/Scene3DTab";
 import { SopLibrary } from "@/views/SopLibrary";
 
 export const DATE_KEY = "hansotbap.date";
+const TAB_KEY = "hansotbap.tab.prime"; // 조정 적용 뒤 강제 새로고침을 해도 보던 탭(충돌 목록 등)에 남게
 
 interface Props {
   zones: Zone[];
@@ -27,9 +28,10 @@ interface Props {
   plans: PlanRecord[]; // 제출 이력 (가장 최근 제출을 찾는 데 쓴다)
   restrictions: ZoneRestriction[]; // 금지 판정 → 구역별 출입 제한 (안내 패널·3D 공용)
   onAdjusted: (result: AdjustmentResult) => void;
+  onShared: () => void; // 협력사 공유 뒤 다시 불러오기 (판정이 바뀌지 않으므로 새로고침하지 않는다)
 }
 
-export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops, plans, restrictions, onAdjusted }: Props) {
+export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops, plans, restrictions, onAdjusted, onShared }: Props) {
   // 기본 날짜: 가장 최근 제출한 협력사의 작업이 걸린 충돌 중 가장 높은 등급(같으면 먼저 시작)의 시작일.
   // 제출 직후 그 협력사가 낸 충돌이 있는 날로 바로 간다. 제출이 없으면 기준 일정의 한 날
   const defaultDate = useMemo(() => {
@@ -46,7 +48,8 @@ export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops,
   const date = dateOverride ?? defaultDate;
   const setDate = setDateOverride;
   useEffect(() => sessionStorage.setItem(DATE_KEY, date), [date]);
-  const [tab, setTab] = useState("board");
+  const [tab, setTab] = useState(() => sessionStorage.getItem(TAB_KEY) ?? "board");
+  useEffect(() => sessionStorage.setItem(TAB_KEY, tab), [tab]);
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const [sopView, setSopView] = useState<"matches" | "library">("matches");
   const blockedZones = useMemo(() => groupByZone(restrictionsOn(restrictions, date), zones).length, [restrictions, date, zones]);
@@ -170,12 +173,14 @@ export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops,
           <label className="mb-2 flex items-center gap-1 text-xs text-stone-600">
             <input type="checkbox" checked={groupRules} onChange={(e) => setGroupRules(e.target.checked)} /> 규칙별로 묶어 보기
           </label>
+          <ShareBar records={filter.filtered} onShared={onShared} />
           <ConflictList
             records={filter.filtered}
             tasks={tasks}
             role={{ kind: "prime" }}
             onShow3D={show3D}
             onAdjusted={onAdjusted}
+            onShared={onShared}
             groupByRule={groupRules}
             emptyText={filter.latestOn ? "최근 제출이 새로 만든 충돌이 없습니다. 위 체크를 끄면 전체 충돌이 보입니다." : "아직 판정된 충돌이 없습니다. 협력사 화면에서 계획서를 올려 제출하면 그 순간 판정합니다."}
           />

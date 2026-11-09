@@ -1,5 +1,5 @@
 // 협력사 화면: 계획서 올리기·제출(F1→F8→F2), 내 작업, 나와 겹친 충돌, 매칭된 표준서, 내 작업 3D
-// 권한: 충돌·표준서 매칭은 서버가 contractor 로 거른 것만 받는다. 작업 목록은 F5(PR #34)가 들어오면 서버에서 걸러진다
+// 권한: 작업·충돌·표준서 매칭 모두 서버가 contractor 로 거른 것만 받는다 (작업은 내 것 + 원청이 공유한 충돌의 상대 작업)
 import { useMemo, useState } from "react";
 import { ConflictList } from "@/components/ConflictList";
 import { PlanUpload } from "@/components/PlanUpload";

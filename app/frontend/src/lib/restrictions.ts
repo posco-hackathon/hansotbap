@@ -56,7 +56,7 @@ export function restrictionsOn(list: ZoneRestriction[], date: string): ZoneRestr
   return list.filter((r) => new Date(r.start).getTime() < dayEnd && new Date(r.end).getTime() > dayStart);
 }
 
-/** 협력사가 보는 것: 내 작업이 걸린 제한만 (서버가 이미 충돌을 걸러 주지만 작업 목록은 아직 전체라 한 번 더) */
+/** 협력사가 보는 것: 내 작업이 걸린 제한만 (서버가 이미 거른 충돌에서 한 번 더 — 상대 작업만 걸린 제한은 빼고 보여 준다) */
 export function restrictionsForContractor(list: ZoneRestriction[], tasks: Task[], contractor: string): ZoneRestriction[] {
   const mine = new Set(tasks.filter((t) => t.contractor === contractor).map((t) => t.id));
   return list.filter((r) => r.task_ids.some((id) => mine.has(id)));

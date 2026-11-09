@@ -1,6 +1,6 @@
 // 실사용 화면(React, API 연결). 시연용 정적 시안은 /prototype/index.html 에 따로 있다.
 // 역할(원청/협력사)을 고르면 서버가 걸러 준 데이터로 원청 화면·협력사 화면을 보여 준다
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/api/client";
 import { restrictionsFrom } from "@/lib/restrictions";
 import type { AdjustmentResult, ConflictRecord, OverlapCandidate, PlanRecord, PlanSubmitResult, SopInfo, SopMatch, Task, ViewerRole, Zone } from "@/types";
@@ -35,18 +35,21 @@ export default function App() {
 
   const contractor = role.kind === "contractor" ? role.contractor : undefined;
 
-  // 역할에 맞게 서버에서 걸러 받는다 (협력사는 자기 업체 데이터만). 작업·겹침은 F5(PR #34)가 contractor 를 받기 시작하면 걸러진다
+  // 역할에 맞게 서버에서 걸러 받는다 (협력사는 자기 작업 + 공유된 충돌의 상대 작업만). 프론트 필터로 대신하지 않는다
+  const loadSeq = useRef(0);
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
     try {
       const [z, t, o, c, s, p, lib] = await Promise.all([
         api.zones(),
-        api.tasks(),
-        api.overlaps(),
+        api.tasks(contractor),
+        api.overlaps(contractor),
         api.conflicts({ contractor }),
         api.sopMatches(contractor),
         api.plans(contractor),
         api.sops(),
       ]);
+      if (seq !== loadSeq.current) return; // 역할을 빨리 바꾸면 앞 역할의 늦은 응답이 덮어쓰지 않게
       setZones(z);
       setTasks(t);
       setOverlaps(o);
@@ -56,7 +59,7 @@ export default function App() {
       setSops(lib);
       setError(null);
     } catch (e) {
-      setError((e as Error).message);
+      if (seq === loadSeq.current) setError((e as Error).message);
     }
   }, [contractor]);
 
@@ -192,9 +195,11 @@ export default function App() {
             plans={plans}
             restrictions={restrictions}
             onAdjusted={onAdjusted}
+            onShared={() => void load()}
           />
         ) : (
           <ContractorView
+            key={role.contractor} // 다른 협력사로 바꾸면 앞 업체의 날짜·탭·올리던 계획서를 넘겨받지 않게 새로 그린다
             contractor={role.contractor}
             zones={zones}
             tasks={tasks}

@@ -12,13 +12,18 @@ interface Props {
   role: ViewerRole;
   onShow3D?: (taskId: string, record: ConflictRecord) => void;
   onAdjusted?: (result: AdjustmentResult) => void; // 적용·되돌리기 뒤 (refresh 가 true 면 화면을 새로고침한다)
+  onShared?: () => void; // 협력사에 공유한 뒤 (판정이 바뀌지 않으므로 새로고침 없이 다시 불러온다)
   emptyText?: string;
   groupByRule?: boolean; // 규칙별로 묶어 접는다 (R16 26건을 한 줄로). 가장 높은 등급·건수 순
 }
 
 const GROUP_OPEN_MAX = 3; // 이 건수 이하인 묶음은 펼쳐 둔다 [팀 설정값]
+const PERSON_KEY = "hansotbap.decidedBy"; // 공유·조정 적용 책임자 이름 (이행 기록). 한 번 적으면 이 탭에서 다시 쓴다
 
-export function ConflictList({ records, tasks, role, onShow3D, onAdjusted, emptyText = "판정된 충돌이 없습니다.", groupByRule = false }: Props) {
+const savedPerson = () => sessionStorage.getItem(PERSON_KEY) ?? "";
+const rememberPerson = (name: string) => sessionStorage.setItem(PERSON_KEY, name.trim());
+
+export function ConflictList({ records, tasks, role, onShow3D, onAdjusted, onShared, emptyText = "판정된 충돌이 없습니다.", groupByRule = false }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const taskOf = (id: string) => tasks.find((t) => t.id === id);
 
@@ -52,7 +57,7 @@ export function ConflictList({ records, tasks, role, onShow3D, onAdjusted, empty
                 </span>
               </summary>
               <div className="border-t border-line-2 px-3">
-                <ConflictList records={rs} tasks={tasks} role={role} onShow3D={onShow3D} onAdjusted={onAdjusted} />
+                <ConflictList records={rs} tasks={tasks} role={role} onShow3D={onShow3D} onAdjusted={onAdjusted} onShared={onShared} />
               </div>
             </details>
           );
@@ -82,10 +87,11 @@ export function ConflictList({ records, tasks, role, onShow3D, onAdjusted, empty
               <span className="text-xs text-stone-500">{c.rule_id}</span>
               {r.status === "adjusted" && <span className="rounded bg-ok-soft px-1.5 py-0.5 text-xs text-ok">조정 적용됨</span>}
               {r.status === "resolved" && <span className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">해소</span>}
+              {role.kind === "prime" && r.shared_at && <span className="rounded bg-brand-soft px-1.5 py-0.5 text-xs text-brand-hover">공유됨</span>}
               <span className="ml-auto text-xs text-stone-400">{isOpen ? "접기 ▲" : "상세 ▼"}</span>
             </button>
             {isOpen && (
-              <ConflictDetail record={r} tasks={tasks} role={role} onShow3D={onShow3D} onAdjusted={onAdjusted} />
+              <ConflictDetail record={r} tasks={tasks} role={role} onShow3D={onShow3D} onAdjusted={onAdjusted} onShared={onShared} />
             )}
           </li>
         );
@@ -94,9 +100,10 @@ export function ConflictList({ records, tasks, role, onShow3D, onAdjusted, empty
   );
 }
 
-function ConflictDetail({ record: r, tasks, role, onShow3D, onAdjusted }: Omit<Props, "records" | "emptyText"> & { record: ConflictRecord }) {
+function ConflictDetail({ record: r, tasks, role, onShow3D, onAdjusted, onShared }: Omit<Props, "records" | "emptyText"> & { record: ConflictRecord }) {
   const c = r.conflict;
   const taskOf = (id: string) => tasks.find((t) => t.id === id);
+  const [person, setPerson] = useState(savedPerson);
   return (
     <div className="mt-2 grid gap-3 rounded bg-stone-50 p-3 text-xs">
       <div className="grid gap-1 sm:grid-cols-[6rem_1fr]">
@@ -154,18 +161,106 @@ function ConflictDetail({ record: r, tasks, role, onShow3D, onAdjusted }: Omit<P
           {r.plan_id != null ? ` · 제출 #${r.plan_id}` : ""}
         </span>
       </div>
-      {role.kind === "prime" && r.status !== "resolved" && <AdjustmentPanel record={r} tasks={tasks} onAdjusted={onAdjusted} />}
+      {role.kind === "prime" && r.status !== "resolved" && (
+        <div className="grid gap-2 border-t border-stone-200 pt-2">
+          <label className="flex flex-wrap items-center gap-2">
+            <b>책임자</b>
+            <input value={person} onChange={(e) => setPerson(e.target.value)} placeholder="이름 (필수)" className="rounded border border-stone-300 bg-white px-2 py-1" />
+            <span className="text-stone-500">협력사 공유·조정 적용을 한 사람으로 이행 기록에 남습니다.</span>
+          </label>
+          <SharePanel record={r} person={person} onShared={onShared} />
+          <AdjustmentPanel record={r} tasks={tasks} decidedBy={person} onAdjusted={onAdjusted} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** F5 협력사 공유: 원청이 확인한 충돌만 협력사 화면('나와 겹친 충돌')에 내려간다. 조정을 적용하면 함께 공유된다 */
+function SharePanel({ record: r, person, onShared }: { record: ConflictRecord; person: string; onShared?: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const share = async () => {
+    if (!person.trim()) {
+      setError("공유를 확인한 책임자 이름을 적어 주세요 (이행 기록에 남습니다)");
+      return;
+    }
+    rememberPerson(person);
+    setBusy(true);
+    setError(null);
+    try {
+      await api.share({ conflict_ids: [r.conflict.id], shared_by: person.trim() });
+      onShared?.();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <b>협력사 공유 (F5)</b>
+      {r.shared_at ? (
+        <span className="rounded bg-brand-soft px-1.5 py-0.5 text-brand-hover">공유됨 · {fmtDateTime(r.shared_at)}</span>
+      ) : (
+        <button type="button" onClick={share} disabled={busy} className="rounded bg-brand px-2 py-1 font-medium text-white disabled:opacity-40">
+          {busy ? "공유 중…" : "협력사에 공유"}
+        </button>
+      )}
+      <span className="text-stone-500">공유한 충돌만 걸린 협력사 화면에 보입니다 (상대 업체 계획서 원문은 빠집니다).</span>
+      {error && <span className="text-danger">{error}</span>}
+    </div>
+  );
+}
+
+/** 충돌 목록 위: 지금 걸러 보이는 충돌 중 아직 공유하지 않은 것을 한 번에 협력사에 공유 */
+export function ShareBar({ records, onShared }: { records: ConflictRecord[]; onShared?: () => void }) {
+  const pending = records.filter((r) => !r.shared_at && r.status !== "resolved");
+  const [person, setPerson] = useState(savedPerson);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const share = async () => {
+    if (!person.trim()) {
+      setMessage({ ok: false, text: "공유를 확인한 책임자 이름을 적어 주세요" });
+      return;
+    }
+    rememberPerson(person);
+    setBusy(true);
+    setMessage(null);
+    try {
+      const done = await api.share({ conflict_ids: pending.map((r) => r.conflict.id), shared_by: person.trim() });
+      setMessage({ ok: true, text: `${done.length}건을 협력사에 공유했습니다` });
+      onShared?.();
+    } catch (e) {
+      setMessage({ ok: false, text: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+      <span className="text-stone-600">
+        보이는 충돌 {records.length}건 중 협력사 미공유 <b>{pending.length}</b>건
+      </span>
+      <input value={person} onChange={(e) => setPerson(e.target.value)} placeholder="책임자 (필수)" className="rounded border border-stone-300 px-2 py-0.5" />
+      <button type="button" onClick={share} disabled={busy || pending.length === 0} className="rounded bg-brand px-2 py-0.5 font-medium text-white disabled:opacity-40">
+        {busy ? "공유 중…" : `미공유 ${pending.length}건 협력사에 공유`}
+      </button>
+      {message && <span className={message.ok ? "text-ok" : "text-danger"}>{message.text}</span>}
     </div>
   );
 }
 
 /** F4 조정안: 충돌을 열 때 후보를 부른다(충돌 한 건에 1~2초). 적용하면 재판정 결과(사라짐·새로 생김)를 보여 준다 */
-function AdjustmentPanel({ record: r, tasks, onAdjusted }: { record: ConflictRecord; tasks: Task[]; onAdjusted?: (res: AdjustmentResult) => void }) {
+function AdjustmentPanel({ record: r, tasks, decidedBy, onAdjusted }: { record: ConflictRecord; tasks: Task[]; decidedBy: string; onAdjusted?: (res: AdjustmentResult) => void }) {
   const c = r.conflict;
   const [candidates, setCandidates] = useState<AdjustmentCandidate[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [decidedBy, setDecidedBy] = useState(() => sessionStorage.getItem("hansotbap.decidedBy") ?? "");
   const [applying, setApplying] = useState<string | null>(null);
   const [result, setResult] = useState<AdjustmentResult | null>(null);
   const taskOf = (id: string) => tasks.find((t) => t.id === id);
@@ -184,10 +279,10 @@ function AdjustmentPanel({ record: r, tasks, onAdjusted }: { record: ConflictRec
 
   const apply = async (cand: AdjustmentCandidate) => {
     if (!decidedBy.trim()) {
-      setError("적용한 책임자 이름을 적어 주세요 (이행 기록에 남습니다)");
+      setError("위 책임자 칸에 적용한 사람 이름을 적어 주세요 (이행 기록에 남습니다)");
       return;
     }
-    sessionStorage.setItem("hansotbap.decidedBy", decidedBy.trim());
+    rememberPerson(decidedBy);
     setApplying(cand.id);
     setError(null);
     try {
@@ -230,12 +325,6 @@ function AdjustmentPanel({ record: r, tasks, onAdjusted }: { record: ConflictRec
             {loading ? "계산 중…" : "조정안 보기"}
           </button>
         )}
-        <input
-          value={decidedBy}
-          onChange={(e) => setDecidedBy(e.target.value)}
-          placeholder="적용 책임자 (필수)"
-          className="rounded border border-stone-300 px-2 py-1"
-        />
         <span className="text-stone-500">적용해도 작업을 승인·중지하지 않습니다. 원청의 조정 기록으로 남고 재판정합니다.</span>
       </div>
       {error && <pre className="mt-2 whitespace-pre-wrap rounded bg-red-50 p-2 text-red-700">{error}</pre>}
