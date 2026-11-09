@@ -40,6 +40,12 @@ class Grade(str, Enum):
     DEFECT = "결함"
 
 
+class AdjustmentKind(str, Enum):
+    """조정안 종류. 지금은 일정 이동 하나. '선행 조건 부여' 같은 순서 변경형은 이후에 더한다."""
+
+    RESCHEDULE = "reschedule"  # 일정 이동 (기간 유지)
+
+
 class Role(str, Enum):
     PRIME = "prime"  # 원청
     CONTRACTOR = "contractor"  # 협력사
@@ -99,6 +105,55 @@ class Conflict(BaseModel):
     reason: str
     suggestion: str | None = None
     sources: list[SourceRef] = []
+
+
+class AdjustmentCandidate(BaseModel):
+    """F4 조정안 후보. 규칙이 계산하고(LLM 아님), 이유 문장은 규칙 문구로 만든다."""
+
+    id: str
+    kind: AdjustmentKind
+    task_id: str = Field(description="옮길 작업")
+    conflict_id: str = Field(description="이 조정안이 풀려는 충돌")
+    original_start: datetime
+    original_end: datetime
+    new_start: datetime
+    new_end: datetime
+    reason: str
+    resolves: bool = Field(description="적용하면 conflict_id의 충돌이 사라지는가")
+    new_conflict_ids: list[str] = Field(default=[], description="적용하면 새로 생기는 충돌")
+    affected_successors: list[str] = Field(
+        default=[], description="옮긴 뒤 시작이 이 작업의 새 종료보다 이른 후행 작업"
+    )
+
+
+class Adjustment(BaseModel):
+    """적용한 조정 기록. 협력사가 낸 원본 계획서는 그대로 두고 이 기록을 위에 얹어 판정한다 (되돌리면 기록을 뺀다)."""
+
+    id: str
+    kind: AdjustmentKind
+    task_id: str
+    conflict_id: str
+    original_start: datetime
+    original_end: datetime
+    new_start: datetime
+    new_end: datetime
+    reason: str
+    decided_by: str = Field(description="적용한 책임자 (제64조 이행 기록)")
+    decided_at: datetime
+
+
+class ConflictGradeChange(BaseModel):
+    conflict_id: str
+    before: Grade
+    after: Grade
+
+
+class ConflictDiff(BaseModel):
+    """조정 전후 비교 (Conflict.id 기준)."""
+
+    resolved: list[Conflict] = Field(default=[], description="사라진 충돌")
+    introduced: list[Conflict] = Field(default=[], description="새로 생긴 충돌")
+    grade_changed: list[ConflictGradeChange] = []
 
 
 class OverlapCandidate(BaseModel):
