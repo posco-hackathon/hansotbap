@@ -179,6 +179,7 @@ class Candidate:
     precondition_text: str | None = None
     evidence_locs: list[str] = field(default_factory=list)
     llm: LLMTask | None = None  # LLM 해석 (규칙 결과와 대조한다)
+    origin: str = "table"  # "table": 표 한 행에서 / "llm": 표가 없어 LLM 이 줄글에서 읽음
 
 
 _CONTRACTOR_LINE = re.compile(r"(?:업체명|업체|협력사|협력업체|회사명|시공사)\s*[:：|]\s*(?P<v>[^\s|,]+)")  # "업체명: X" 또는 표 칸 "업체명 | X"
@@ -250,6 +251,7 @@ def candidate_from_llm(t: LLMTask) -> Candidate:
         precondition_text=t.precondition_text,
         evidence_locs=list(dict.fromkeys(t.evidence_locs)),
         llm=t,
+        origin="llm",
     )
 
 
@@ -308,6 +310,12 @@ def finalize(
     if sd is None and llm_sd:
         sd, ed = llm_sd, llm_ed
         flag("date_from_llm", "기간을 규칙으로 읽지 못해 LLM 해석을 썼습니다")
+    elif c.origin == "llm" and ed is None and llm_sd and llm_ed and llm_ed != llm_sd:
+        # 표가 없는 줄글이면 '기간 글'은 LLM 이 인용한 문장일 뿐이다. 거기서 날짜 하나만 건진 규칙 값보다
+        # LLM 이 읽은 시작·종료 쌍이 낫다 (예: "11월 15일 착수하여 '27. 1. 11. 종료" → 규칙은 시작만 읽는다).
+        # 표 행(origin="table")은 날짜 칸이 따로 있으므로 지금처럼 규칙 값을 그대로 쓴다.
+        sd, ed = llm_sd, llm_ed
+        flag("date_from_llm", "줄글이라 종료일을 규칙으로 읽지 못해 LLM 해석을 썼습니다")
     elif sd and llm_sd and (sd != llm_sd or (ed and llm_ed and ed != llm_ed)):
         flag("date_mismatch", f"기간 해석이 다릅니다 (규칙 {sd}~{ed or sd}, LLM {llm_sd}~{llm_ed or llm_sd}) — 규칙 값을 썼습니다")
 

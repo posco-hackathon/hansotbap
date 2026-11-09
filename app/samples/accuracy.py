@@ -134,12 +134,16 @@ def measure(mode: str, only: str | None = None, samples: Path | None = None, rep
     report = {"mode": mode, "samples": base.name, "repeat": repeat, "files": [], "cells": 0, "correct": 0,
               "tasks": 0, "tasks_exact": 0, "missed_tasks": 0, "extra_tasks": 0, "needs_review": 0,
               "seconds": [], "tokens": {"in": 0, "cache_read": 0, "cache_write": 0, "out": 0}, "llm_calls": 0,
-              "consistent_files": 0, "failed": [], "wrong": []}
+              "consistent_files": 0, "failed": [], "wrong": [], "skipped": []}
     for ans_path in sorted((base / "answers").glob("*.json")):
         if ans_path.name.startswith("_"):
             continue
         truth = json.loads(ans_path.read_text(encoding="utf-8"))
         if only and only not in truth["file"]:
+            continue
+        # 표가 없어 LLM 으로만 읽히는 샘플(가상-제관F)은 rules 경로에서 빼고 센다 — "못 읽음"으로 정확도를 깎지 않게
+        if mode == "rules" and truth.get("extraction") == "llm":
+            report["skipped"].append(truth["file"])
             continue
         sample = base / truth["file"]
         runs, secs = [], []
@@ -222,6 +226,8 @@ def main() -> None:
     args = ap.parse_args()
     r = measure(args.mode, args.only, Path(args.samples).resolve() if args.samples else None, args.repeat)
     print(f"추출 경로: {args.mode}   표본: {r['samples']}   반복: {r['repeat']}회")
+    if r.get("skipped"):
+        print(f"  (표가 없어 LLM 으로만 읽히는 {len(r['skipped'])}건 제외: {', '.join(r['skipped'])} — --mode llm 으로 재시)")
     print(f"{'파일':48} {'경로':12} {'작업(정답/추출)':>14} {'칸':>6} {'정답':>6} {'정확도':>7}")
     for f in r["files"]:
         acc = 100 * f["correct"] / f["cells"] if f["cells"] else 0
