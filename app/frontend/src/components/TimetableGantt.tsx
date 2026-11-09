@@ -17,6 +17,14 @@ interface Props {
 const DAY_START = "07:00";
 const DAY_END = "19:00";
 const GRADE_CLASS: Record<Grade, string> = { 금지: "cf-prohibited", 조건부: "cf-conditional", 결함: "cf-defect" };
+const WEEKDAY = "일월화수목금토";
+
+/** 간트 위쪽 머리글: '2027-01-21 (목)'. vis-timeline 이 넘기는 값은 moment 라 valueOf() 로 Date 를 만든다 */
+function koreanDayLabel(date: Date): string {
+  const d = new Date(date.valueOf());
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} (${WEEKDAY[d.getDay()]})`;
+}
 
 export function TimetableGantt({ date, zones, tasks, conflicts = [], onSelectTask }: Props) {
   const ref = useRef<HTMLDivElement>(null);
@@ -62,7 +70,10 @@ export function TimetableGantt({ date, zones, tasks, conflicts = [], onSelectTas
       orientation: "top",
       showCurrentTime: true,
       timeAxis: { scale: "minute", step: 30 },
-      format: { minorLabels: { minute: "HH:mm" } },
+      // vis-timeline 번들은 moment 로케일을 여러 개 싣는데, 마지막에 실린 우크라이나어가 전역 로케일이 되어
+      // 날짜 머리글이 "чт 21 січня"처럼 나온다. 로케일은 en 으로 되돌리고 머리글은 직접 한국어로 쓴다
+      locale: "en",
+      format: { minorLabels: { minute: "HH:mm" }, majorLabels: koreanDayLabel },
     });
     timeline.on("select", (props: { items: string[] }) => {
       if (props.items[0]) onSelectTask?.(props.items[0]);
