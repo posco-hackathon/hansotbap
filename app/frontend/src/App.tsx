@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/api/client";
 import { restrictionsFrom } from "@/lib/restrictions";
+import { PROJECT_D0, PROJECT_END, daysBetween, dday, markJumpToLatestConflict, todayISO } from "@/lib/siteDate";
 import { ChatBot } from "@/components/ChatBot";
 import type { AdjustmentResult, ConflictRecord, OverlapCandidate, PlanRecord, PlanSubmitResult, SopInfo, SopMatch, Task, ViewerRole, Zone } from "@/types";
 import { ContractorView } from "@/views/ContractorView";
@@ -10,7 +11,6 @@ import { DATE_KEY, PrimeView } from "@/views/PrimeView";
 
 const ROLE_KEY = "hansotbap.role"; // 판정 후 강제 새로고침을 해도 고른 역할이 남게
 const NOTICE_KEY = "hansotbap.notice"; // 새로고침 뒤에 보여 줄 제출·조정 결과
-const PROJECT_D0 = "2026-11-12"; // 광양 2고로 개수 D0 (백엔드 config.project_d0 와 같은 값)
 
 function loadRole(): ViewerRole {
   try {
@@ -37,6 +37,7 @@ export default function App() {
   const [viewDate, setViewDate] = useState<string | null>(null); // 원청·협력사 화면이 지금 보는 날짜 → AI 챗봇의 '오늘'
 
   const contractor = role.kind === "contractor" ? role.contractor : undefined;
+  const today = todayISO();
 
   // 역할에 맞게 서버에서 걸러 받는다 (협력사는 자기 작업 + 원청이 공유한 충돌의 상대 작업만)
   const load = useCallback(async () => {
@@ -106,7 +107,8 @@ export default function App() {
       intro.length ? `새로 생긴 공유 충돌 ${intro.length}건: ${intro.map((c) => `${c.id} (${c.grade})`).join(", ")}` : "",
       gone.length ? `해소된 공유 충돌 ${gone.length}건: ${gone.map((c) => c.id).join(", ")}` : "",
     ].filter(Boolean);
-    sessionStorage.removeItem(DATE_KEY); // 원청 화면이 이 제출이 낸 충돌 날짜로 가게
+    sessionStorage.removeItem(DATE_KEY);
+    markJumpToLatestConflict(); // 이번 한 번만 원청 화면이 이 제출이 낸 충돌 날짜로 간다 (평소 기본은 오늘)
     finishWithRefresh(parts.join(" · "), r.refresh);
   };
 
@@ -127,7 +129,6 @@ export default function App() {
   // 금지 판정 → 구역별 출입 제한 (안내 패널과 3D가 같이 쓴다). 협력사는 서버가 걸러 준 충돌 기준이라 자기 것만 나온다
   const restrictions = useMemo(() => restrictionsFrom(conflicts.map((r) => r.conflict), tasks), [conflicts, tasks]);
 
-  const dday = (iso: string) => Math.round((new Date(`${iso.slice(0, 10)}T00:00:00`).getTime() - new Date(`${PROJECT_D0}T00:00:00`).getTime()) / 86400000);
 
   return (
     <div className="min-h-screen text-ink">
@@ -145,8 +146,13 @@ export default function App() {
             </div>
           </div>
           <div className="hidden items-center gap-3 text-xs text-stone-500 md:flex">
-            <span>
-              D0 {PROJECT_D0} · 화입 예정 2027-03-23 (D{dday("2027-03-23")})
+            <span title={`종풍(D0) ${PROJECT_D0} · 화입 예정 ${PROJECT_END} · 화면은 오늘 날짜로 엽니다`}>
+              오늘 {today} ·{" "}
+              {today < PROJECT_D0
+                ? `종풍(D0)까지 ${daysBetween(today, PROJECT_D0)}일`
+                : today > PROJECT_END
+                  ? "화입 뒤"
+                  : `개수 D${dday(today)} · 화입까지 ${daysBetween(today, PROJECT_END)}일`}
             </span>
             <span>작업 {tasks.length}건 · 업체 {new Set(tasks.map((t) => t.contractor)).size}곳 · 표준서 {sops.length}건</span>
           </div>

@@ -1,6 +1,5 @@
 // 원청 대시보드(현재상황판): 상단 요약 + [현황판: 상황판(BoardView, 시안 #board 레이아웃) + 위험 시간대 공지 + 오늘 출입 제한] / [3D·충돌: scene3d]
 // / [충돌 목록: 규칙·조문·원문·조정안·협력사 공유] / [표준서 매칭] / [TBM 확인] / [이력]
-// TODO: 음성으로 묻기(F6)
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/api/client";
 import { ConflictFilter, useConflictFilter } from "@/components/ConflictFilter";
@@ -9,7 +8,7 @@ import { GradeBadge } from "@/components/ConflictBadge";
 import { RiskWindowList } from "@/components/RiskWindowList";
 import { SopMatchPanel } from "@/components/SopMatchPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { GRADE_RANK } from "@/lib/format";
+import { defaultBoardDate } from "@/lib/siteDate";
 import { usePerson } from "@/lib/person";
 import { groupByZone, restrictionsOn, type ZoneRestriction } from "@/lib/restrictions";
 import type { AdjustmentResult, ConflictRecord, Grade, OverlapCandidate, PlanRecord, RiskWindow, SopInfo, SopMatch, Task, Zone } from "@/types";
@@ -38,17 +37,9 @@ interface Props {
 }
 
 export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops, plans, restrictions, onAdjusted, onReload, onDateChange }: Props) {
-  // 기본 날짜: 가장 최근 제출한 협력사의 작업이 걸린 충돌 중 가장 높은 등급(같으면 먼저 시작)의 시작일.
-  // 제출 직후 그 협력사가 낸 충돌이 있는 날로 바로 간다. 제출이 없으면 기준 일정의 한 날
-  const defaultDate = useMemo(() => {
-    const latest = [...plans].sort((a, b) => b.id - a.id)[0];
-    if (!latest) return "2027-01-21";
-    const mine = new Set(tasks.filter((t) => t.contractor === latest.contractor).map((t) => t.id));
-    const top = conflicts
-      .filter((r) => r.conflict.task_ids.some((id) => mine.has(id)))
-      .sort((a, b) => GRADE_RANK[b.conflict.grade] - GRADE_RANK[a.conflict.grade] || a.conflict.window_start.localeCompare(b.conflict.window_start))[0];
-    return (top?.conflict.window_start ?? "2027-01-21").slice(0, 10);
-  }, [conflicts, tasks, plans]);
+  // 기본 날짜는 오늘(공사 기간 밖이면 가장 가까운 공사일). 계획서를 낸 직후 한 번만 그 제출이 낸 충돌 날로 간다.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- 처음 한 번만 정한다 (제출 표식을 소비하므로 다시 계산하면 안 된다)
+  const defaultDate = useMemo(() => defaultBoardDate({ plans, conflicts, tasks }), []);
   // 판정 후 강제 새로고침을 해도 보던 날짜가 남게 한다 (새 제출이 오면 App 이 지워서 새 충돌 날짜로 간다)
   const [dateOverride, setDateOverride] = useState<string | null>(() => sessionStorage.getItem(DATE_KEY));
   const date = dateOverride ?? defaultDate;
