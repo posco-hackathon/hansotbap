@@ -5,7 +5,7 @@ from datetime import date
 from fastapi import APIRouter, Query
 
 from db.plans import current_schedule, list_conflicts
-from llm.risk_text import polish_notice
+from llm.risk_text import polish_notices
 from rules.data_loader import load_zones
 from rules.risk import score_windows
 from schemas import RiskWindow
@@ -16,11 +16,11 @@ _POLISH_TOP = 5  # polish 때 LLM으로 다듬는 건수. 목록 전체를 부�
 
 
 def _polish_top(windows: list[RiskWindow]) -> list[RiskWindow]:
-    """점수가 높은 건의 문장만 다듬고, 순서는 그대로 둔다."""
+    """점수가 높은 건의 문장만 다듬고, 순서는 그대로 둔다. 호출은 한꺼번에 보낸다(순차 20초 → 4초대)."""
     top = sorted(range(len(windows)), key=lambda i: -windows[i].score)[:_POLISH_TOP]
     out = list(windows)
-    for i in top:
-        out[i] = out[i].model_copy(update={"notice": polish_notice(out[i].notice)})
+    for i, notice in zip(top, polish_notices([out[i].notice for i in top]), strict=True):
+        out[i] = out[i].model_copy(update={"notice": notice})
     return out
 
 
