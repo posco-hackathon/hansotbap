@@ -215,6 +215,79 @@ export interface HistoryEvent {
   legal_basis: string | null;
 }
 
+// ── F7 TBM 전달 확인 ──────────────────────────────────────────────────
+
+export type TbmItemKind = "adjustment" | "risk_window" | "notice";
+
+/** TBM에서 작업자에게 전달해야 할 항목 하나. 서버가 규칙으로 만든다 */
+export interface TbmItem {
+  id: string;
+  kind: TbmItemKind;
+  text: string;
+  rule_ids: string[];
+  legal_basis: string[];
+  conflict_ids: string[];
+}
+
+/** GET /api/tbm/checklist */
+export interface TbmChecklist {
+  contractor: string;
+  date: string; // YYYY-MM-DD
+  items: TbmItem[];
+}
+
+/** POST /api/tbm/notices 본문: 원청이 업체·날짜를 정해 추가하는 공지 */
+export interface TbmNoticeCreate {
+  contractor: string;
+  date: string; // YYYY-MM-DD
+  text: string;
+  created_by: string;
+}
+
+export interface TbmNotice {
+  id: number;
+  contractor: string;
+  date: string; // YYYY-MM-DD
+  text: string;
+  created_by: string;
+  created_at: string;
+}
+
+/** POST /api/tbm/transcribe 응답. 원본 녹음은 받아쓴 뒤 지운다 */
+export interface TbmTranscript {
+  transcript: string;
+  model: string;
+}
+
+/** POST /api/tbm/checks 본문. 전달 항목은 보내지 않는다 (서버가 만든다) */
+export interface TbmCheckRequest {
+  contractor: string;
+  date: string; // YYYY-MM-DD
+  transcript: string;
+  checked_by: string;
+}
+
+export interface TbmItemResult {
+  item: TbmItem;
+  mentioned: boolean;
+  quote: string | null; // 전달을 뒷받침하는 전사문의 문장
+  note: string | null; // LLM 답을 규칙이 뒤집은 까닭
+}
+
+/** 저장된 TBM 전달 확인 한 건 (F5 이행 기록에도 남는다) */
+export interface TbmCheckRecord {
+  id: number;
+  contractor: string;
+  date: string; // YYYY-MM-DD
+  checked_by: string;
+  checked_at: string;
+  transcript: string;
+  results: TbmItemResult[];
+  missing_ids: string[]; // 전달이 확인되지 않은 항목
+  provider: string;
+  model: string;
+}
+
 // ── F9 위험 시간대 ────────────────────────────────────────────────────
 
 /** GET /api/risk-windows. 여러 날이 합쳐진 건은 start 날짜~end 날짜 동안 매일 start 시각~end 시각을 뜻한다 */

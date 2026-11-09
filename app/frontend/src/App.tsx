@@ -35,13 +35,13 @@ export default function App() {
 
   const contractor = role.kind === "contractor" ? role.contractor : undefined;
 
-  // 역할에 맞게 서버에서 걸러 받는다 (협력사는 자기 업체 데이터만). 작업·겹침은 F5(PR #34)가 contractor 를 받기 시작하면 걸러진다
+  // 역할에 맞게 서버에서 걸러 받는다 (협력사는 자기 작업 + 원청이 공유한 충돌의 상대 작업만)
   const load = useCallback(async () => {
     try {
       const [z, t, o, c, s, p, lib] = await Promise.all([
         api.zones(),
-        api.tasks(),
-        api.overlaps(),
+        api.tasks(contractor),
+        api.overlaps(contractor),
         api.conflicts({ contractor }),
         api.sopMatches(contractor),
         api.plans(contractor),
@@ -104,7 +104,8 @@ export default function App() {
 
   const onAdjusted = (r: AdjustmentResult) => {
     const a = r.record.adjustment;
-    const text = `조정 적용: ${a.task_id} 일정 이동 (${a.decided_by}) · 사라진 충돌 ${r.diff.resolved.length}건 · 새로 생긴 충돌 ${r.diff.introduced.length}건 · 현재 충돌 ${r.conflicts.length}건`;
+    const what = r.record.status === "reverted" ? `조정 되돌림: ${a.task_id} 원래 일정으로` : `조정 적용: ${a.task_id} 일정 이동 (${a.decided_by})`;
+    const text = `${what} · 사라진 충돌 ${r.diff.resolved.length}건 · 새로 생긴 충돌 ${r.diff.introduced.length}건 · 현재 충돌 ${r.conflicts.length}건`;
     // 적용 결과 카드를 잠깐 보여 준 뒤 새로고침 (기획서: 판정 후 강제 새로고침)
     window.setTimeout(() => finishWithRefresh(text, r.refresh), 1500);
   };
@@ -192,6 +193,7 @@ export default function App() {
             plans={plans}
             restrictions={restrictions}
             onAdjusted={onAdjusted}
+            onReload={() => void load()}
           />
         ) : (
           <ContractorView

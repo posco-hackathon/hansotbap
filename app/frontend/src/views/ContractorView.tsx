@@ -1,5 +1,5 @@
-// 협력사 화면: 계획서 올리기·제출(F1→F8→F2), 내 작업, 나와 겹친 충돌, 매칭된 표준서, 내 작업 3D
-// 권한: 충돌·표준서 매칭은 서버가 contractor 로 거른 것만 받는다. 작업 목록은 F5(PR #34)가 들어오면 서버에서 걸러진다
+// 협력사 화면: 계획서 올리기·제출(F1→F8→F2), 내 작업, 나와 겹친 충돌, 원청 공유·공지(F5·F9), 매칭된 표준서, 내 작업 3D, TBM 확인(F7)
+// 권한: 작업·충돌·표준서 매칭·공유·위험 시간대는 서버가 contractor 로 거른 것만 받는다 (자기 작업 + 공유된 충돌의 상대 작업)
 import { useMemo, useState } from "react";
 import { ConflictList } from "@/components/ConflictList";
 import { PlanUpload } from "@/components/PlanUpload";
@@ -11,7 +11,9 @@ import type { ConflictRecord, PlanRecord, PlanSubmitResult, SopInfo, SopMatch, T
 import { HistoryView } from "@/views/HistoryView";
 import { RestrictionPanel } from "@/views/RestrictionPanel";
 import { Scene3DTab } from "@/views/Scene3DTab";
+import { SharedView } from "@/views/SharedView";
 import { SopLibrary } from "@/views/SopLibrary";
+import { TbmView } from "@/views/TbmView";
 
 interface Props {
   contractor: string;
@@ -42,6 +44,8 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
   const [tab, setTab] = useState("mine");
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const blockedZones = useMemo(() => groupByZone(restrictionsOn(myRestrictions, date), zones).length, [myRestrictions, date, zones]);
+  // 공유·조정이 바뀌면 "원청 공유·공지"를 다시 부른다 (App 이 다시 불러온 충돌 목록이 바뀐 것으로 안다)
+  const conflictsKey = conflicts.map((r) => `${r.conflict.id}:${r.status}:${r.shared_at ?? ""}`).join("|");
 
   return (
     <div className="grid gap-4">
@@ -53,13 +57,23 @@ export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches
           <TabsTrigger value="conflicts">
             나와 겹친 충돌 {conflicts.length > 0 && <span className="ml-1 rounded bg-red-600 px-1.5 text-[10px] text-white">{conflicts.length}</span>}
           </TabsTrigger>
+          <TabsTrigger value="shared">원청 공유·공지</TabsTrigger>
           <TabsTrigger value="restrictions">
             작업 금지 구역 {blockedZones > 0 && <span className="ml-1 rounded bg-red-600 px-1.5 text-[10px] text-white">{blockedZones}</span>}
           </TabsTrigger>
           <TabsTrigger value="sops">표준서</TabsTrigger>
           <TabsTrigger value="scene3d">내 작업 3D</TabsTrigger>
-          <TabsTrigger value="history">내 제출 이력</TabsTrigger>
+          <TabsTrigger value="tbm">TBM 확인</TabsTrigger>
+          <TabsTrigger value="history">내 이력</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="shared">
+          <SharedView contractor={contractor} zones={zones} tasks={tasks} conflictsKey={conflictsKey} />
+        </TabsContent>
+
+        <TabsContent value="tbm">
+          <TbmView role={{ kind: "contractor", contractor }} contractors={[contractor]} defaultDate={date} />
+        </TabsContent>
 
         <TabsContent value="mine" className="rounded-lg bg-white p-4 text-sm shadow-sm">
           <h2 className="mb-2 font-semibold">{contractor} — 내 작업 {mine.length}건</h2>

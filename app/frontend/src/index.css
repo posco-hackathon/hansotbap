@@ -160,3 +160,7 @@ body {
 .vis-item.cf-conditional { background-color: var(--amber-soft); border-color: var(--amber); color: var(--amber); }
 .vis-item.cf-defect { background-color: var(--violet-soft); border-color: var(--violet); color: var(--violet); }
 .vis-timeline, .vis-item { font-family: inherit; font-size: 12px; }
+/* F9 위험 시간대 띠: 그 구역 줄의 배경 (가장 높은 등급 색을 옅게) */
+.vis-item.vis-background.rw-prohibited { background-color: color-mix(in srgb, var(--red) 14%, transparent); }
+.vis-item.vis-background.rw-conditional { background-color: color-mix(in srgb, var(--amber) 16%, transparent); }
+.vis-item.vis-background.rw-defect { background-color: color-mix(in srgb, var(--violet) 13%, transparent); }
