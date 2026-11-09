@@ -30,7 +30,7 @@ from typing import Literal
 
 from rules import activities as act
 from rules.data_loader import load_rules
-from rules.overlap import ALL_ZONE, FURNACE_COLUMN, time_overlap
+from rules.overlap import ALL_ZONE, FURNACE_COLUMN, daily_overlap, minutes_on
 from rules.relations import SYSTEMS, Rel, relate, zone_name
 from schemas import Conflict, ConflictType, Grade, Hazard, Rule, SopMatch, SourceRef, Task, Zone
 
@@ -176,7 +176,8 @@ PAIR_RULES: tuple[PairRule, ...] = (
 
 def _window(rule: PairRule, a: Task, b: Task) -> tuple[datetime, datetime] | None:
     if rule.when == "overlap":
-        return time_overlap(a.start, a.end, b.start, b.end)
+        # 같은 시간: 날짜와 그날의 작업 시각대가 둘 다 겹칠 때만 (주간조·야간조, 오전·오후 작업은 겹치지 않는다)
+        return daily_overlap(a.start, a.end, b.start, b.end)
     if rule.when == "b_before_a_done":  # B는 A 완료 뒤에 시작해야 한다
         return (b.start, max(b.start, min(a.end, b.end))) if b.start < a.end else None
     if rule.when == "a_before_b_done":  # A는 B가 모두 끝난 뒤에 해야 한다
@@ -321,6 +322,21 @@ def detect_pair_rules(tasks: list[Task], rules: list[Rule]) -> list[Conflict]:
     return out
 
 
+def _simultaneous(members: list[Task], s: datetime, e: datetime) -> bool:
+    """구간 s~e 의 가운데 날에 서로 다른 협력사 MIXED_WORK_MIN_CONTRACTORS 곳 이상이 같은 시각에 일하는가 (매일 시각대 기준)."""
+    day = (s + (e - s) / 2).date()
+    marks: list[tuple[int, int, str]] = []
+    for t in members:
+        for m0, m1 in minutes_on(t.start, t.end, day):
+            marks += [(m0, 1, t.contractor), (m1, -1, t.contractor)]
+    working: dict[str, int] = {}
+    for _, step, who in sorted(marks, key=lambda m: (m[0], m[1])):  # 같은 분에는 끝(-1)을 먼저
+        working[who] = working.get(who, 0) + step
+        if sum(1 for n in working.values() if n > 0) >= MIXED_WORK_MIN_CONTRACTORS:
+            return True
+    return False
+
+
 def detect_mixed_work(tasks: list[Task], rules: list[Rule]) -> list[Conflict]:
     """4단계 R30: 같은 구역·같은 시간에 서로 다른 협력사가 N곳 이상이면 혼재 경고.
 
@@ -338,6 +354,9 @@ def detect_mixed_work(tasks: list[Task], rules: list[Rule]) -> list[Conflict]:
         for s, e in zip(cuts, cuts[1:]):
             live = tuple(sorted(t.id for t in in_zone if t.start < e and s < t.end))
             if len({t.contractor for t in in_zone if t.id in live}) < MIXED_WORK_MIN_CONTRACTORS:
+                continue
+            # 기간이 겹쳐도 매일 시각대가 엇갈리면(주간조·야간조) 같이 일하지 않는다 → 같은 시각에 일하는 업체 수로 다시 센다
+            if not _simultaneous([t for t in in_zone if t.id in live], s, e):
                 continue
             if spans and spans[-1][2] == live and spans[-1][1] == s:
                 spans[-1] = (spans[-1][0], e, live)
