@@ -184,7 +184,10 @@ _CONFLICT_UPSERT = """
 INSERT INTO conflicts (id, plan_id, judged_at, payload, status, resolved_at)
 VALUES (?, ?, ?, ?, 'open', NULL)
 ON CONFLICT(id) DO UPDATE SET
-    plan_id = excluded.plan_id,
+    -- plan_id 는 이 충돌을 처음 드러낸 제출이다. 재판정마다 최신 제출로 덮어쓰면 '최근 제출이 만든 충돌'을
+    -- 가려낼 수 없다. 해소됐다 다시 나타났을 때만 그 판정의 제출로 바꾼다
+    plan_id = CASE WHEN conflicts.status = 'resolved' OR conflicts.plan_id IS NULL
+                   THEN excluded.plan_id ELSE conflicts.plan_id END,
     judged_at = excluded.judged_at,
     payload = excluded.payload,
     resolved_at = NULL,

@@ -95,6 +95,24 @@ def test_rejudge_marks_vanished_conflicts_resolved():
     assert all(r["status"] == "resolved" and r["resolved_at"] for r in history if r["conflict"]["id"] in S1_CONFLICTS)
 
 
+def test_plan_id_keeps_the_submission_that_revealed_it():
+    """plan_id 는 충돌을 처음 드러낸 제출이다. 원청 화면의 '최근 제출이 만든 것만' 필터가 이 값으로 거른다."""
+    first = submit_s1()["plan"]["id"]
+    again = submit_s1()["plan"]["id"]  # 같은 계획 재제출 → 같은 충돌이 그대로 남는다
+    assert again != first
+    assert one(client.get("/api/conflicts").json(), P22_CONFLICT)["plan_id"] == first
+
+    # 해소됐다가 다시 나타나면 다시 드러낸 제출로 바뀐다
+    p34 = next(t for t in client.get("/api/tasks").json() if t["id"] == "P34") | {
+        "start": "2027-03-04T07:00:00",
+        "end": "2027-03-12T19:00:00",
+    }
+    client.post("/api/plans/submit", json={"contractor": "가상-배관O", "file": "배관O_조정판.xlsx", "tasks": [p34]})
+    assert P22_CONFLICT not in ids(client.get("/api/conflicts").json())
+    back = submit_s1()["plan"]["id"]
+    assert one(client.get("/api/conflicts").json(), P22_CONFLICT)["plan_id"] == back
+
+
 def test_adjusted_status_survives_rejudge():
     """사람이 적용한 조정(adjusted)은 재판정이 open 으로 되돌리지 않는다."""
     submit_s1()
