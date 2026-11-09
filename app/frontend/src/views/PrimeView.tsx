@@ -8,7 +8,7 @@ import { GradeBadge } from "@/components/ConflictBadge";
 import { RiskWindowList } from "@/components/RiskWindowList";
 import { SopMatchPanel } from "@/components/SopMatchPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { defaultBoardDate } from "@/lib/siteDate";
+import { useDefaultBoardDate } from "@/lib/siteDate";
 import { usePerson } from "@/lib/person";
 import { groupByZone, restrictionsOn, type ZoneRestriction } from "@/lib/restrictions";
 import type { AdjustmentResult, ConflictRecord, Grade, OverlapCandidate, PlanRecord, RiskWindow, SopInfo, SopMatch, Task, Zone } from "@/types";
@@ -37,9 +37,8 @@ interface Props {
 }
 
 export function PrimeView({ zones, tasks, overlaps, conflicts, sopMatches, sops, plans, restrictions, onAdjusted, onReload, onDateChange }: Props) {
-  // 기본 날짜는 오늘(공사 기간 밖이면 가장 가까운 공사일). 계획서를 낸 직후 한 번만 그 제출이 낸 충돌 날로 간다.
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- 처음 한 번만 정한다 (제출 표식을 소비하므로 다시 계산하면 안 된다)
-  const defaultDate = useMemo(() => defaultBoardDate({ plans, conflicts, tasks }), []);
+  // 기본 날짜는 오늘(일정 범위 밖이면 가장 가까운 공사일). 계획서를 낸 직후 한 번만 그 제출이 낸 충돌 날로 간다
+  const defaultDate = useDefaultBoardDate({ plans, conflicts, tasks });
   // 판정 후 강제 새로고침을 해도 보던 날짜가 남게 한다 (새 제출이 오면 App 이 지워서 새 충돌 날짜로 간다)
   const [dateOverride, setDateOverride] = useState<string | null>(() => sessionStorage.getItem(DATE_KEY));
   const date = dateOverride ?? defaultDate;

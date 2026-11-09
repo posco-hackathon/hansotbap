@@ -6,7 +6,7 @@ import { PlanUpload } from "@/components/PlanUpload";
 import { SopMatchPanel } from "@/components/SopMatchPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HAZARD_LABEL, fmtRange } from "@/lib/format";
-import { defaultBoardDate } from "@/lib/siteDate";
+import { useDefaultBoardDate } from "@/lib/siteDate";
 import { groupByZone, restrictionsForContractor, restrictionsOn, type ZoneRestriction } from "@/lib/restrictions";
 import type { ConflictRecord, PlanRecord, PlanSubmitResult, SopInfo, SopMatch, Task, Zone } from "@/types";
 import { PLAN_STATUS_LABEL, PlanStatusChip } from "@/views/ApprovalPanel";
@@ -34,9 +34,8 @@ interface Props {
 export function ContractorView({ contractor, zones, tasks, conflicts, sopMatches, sops, plans, restrictions, onSubmitted, onDateChange }: Props) {
   const mine = tasks.filter((t) => t.contractor === contractor);
   const myRestrictions = useMemo(() => restrictionsForContractor(restrictions, tasks, contractor), [restrictions, tasks, contractor]);
-  // 기본 날짜는 오늘(공사 기간 밖이면 가장 가까운 공사일). 계획서를 낸 직후 한 번만 그 제출이 낸 충돌 날로 간다.
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- 처음 한 번만 정한다 (제출 표식을 소비하므로 다시 계산하면 안 된다)
-  const defaultDate = useMemo(() => defaultBoardDate({ plans, conflicts, tasks }), []);
+  // 기본 날짜는 오늘(일정 범위 밖이면 가장 가까운 공사일). 계획서를 낸 직후 한 번만 그 제출이 낸 충돌 날로 간다
+  const defaultDate = useDefaultBoardDate({ plans, conflicts, tasks });
   const [dateOverride, setDateOverride] = useState<string | null>(null);
   const date = dateOverride ?? defaultDate;
   const setDate = setDateOverride;

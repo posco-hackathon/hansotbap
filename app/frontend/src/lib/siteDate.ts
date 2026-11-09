@@ -1,5 +1,6 @@
 // 화면 기본 날짜는 "오늘"이다. 어느 화면에서도 날짜를 코드에 박지 않는다.
 // 오늘이 공사 기간 밖이면(착공 전·화입 후) 가장 가까운 공사일로 당긴다 — 빈 화면으로 열리지 않게.
+import { useEffect, useState } from "react";
 import type { Conflict, ConflictRecord, PlanRecord, Task } from "@/types";
 import { GRADE_RANK } from "@/lib/format";
 
@@ -84,10 +85,28 @@ export function topConflictDate(conflicts: Conflict[]): string | null {
  * 원청 화면·협력사 화면·3D 가 같은 규칙을 쓴다.
  */
 export function defaultBoardDate(opts: { plans?: PlanRecord[]; conflicts?: ConflictRecord[]; tasks?: Task[] }): string {
-  if (!takeJumpFlag()) return defaultSiteDate();
   const { plans = [], conflicts = [], tasks = [] } = opts;
+  if (!plans.length && !conflicts.length) return defaultSiteDate(); // 아직 서버 응답 전 — 표식은 그대로 둔다
+  if (!takeJumpFlag()) return defaultSiteDate();
   const latest = [...plans].sort((a, b) => b.id - a.id)[0];
   const mine = new Set(tasks.filter((t) => latest && t.contractor === latest.contractor).map((t) => t.id));
   const pool = conflicts.map((r) => r.conflict).filter((c) => !latest || c.task_ids.some((id) => mine.has(id)));
   return topConflictDate(pool) ?? defaultSiteDate();
+}
+
+/**
+ * 화면이 쓸 기본 날짜. 서버 응답이 오기 전에는 오늘을 보여 주고, 데이터가 들어오면 한 번만 다시 정한다.
+ *
+ * 제출 뒤에는 화면을 강제 새로고침하므로(기획서) 첫 렌더에는 작업·충돌이 비어 있다.
+ * 그때 바로 정해 버리면 "방금 낸 계획서가 만든 충돌 날로 간다"가 동작하지 않는다.
+ */
+export function useDefaultBoardDate(opts: { plans?: PlanRecord[]; conflicts?: ConflictRecord[]; tasks?: Task[] }): string {
+  const { plans = [], conflicts = [], tasks = [] } = opts;
+  const [resolved, setResolved] = useState<string | null>(null);
+  useEffect(() => {
+    if (resolved !== null) return;
+    if (!plans.length && !conflicts.length) return; // 아직 못 받았다
+    setResolved(defaultBoardDate({ plans, conflicts, tasks }));
+  }, [plans, conflicts, tasks, resolved]);
+  return resolved ?? defaultSiteDate();
 }
