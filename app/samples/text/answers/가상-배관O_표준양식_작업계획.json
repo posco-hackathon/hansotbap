@@ -1,0 +1,88 @@
+{
+  "file": "가상-배관O_표준양식_작업계획.txt",
+  "contractor": "가상-배관O",
+  "format": "xlsx",
+  "tasks": [
+    {
+      "wbs_id": "P34",
+      "name": "질소·가스·송풍 라인 복구 연결",
+      "zone_id": "TUYERE",
+      "start": "2027-02-26",
+      "end": "2027-03-04",
+      "shift": "day",
+      "headcount": 8,
+      "hazards": [
+        "gas",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P20",
+        "P21",
+        "P22"
+      ]
+    },
+    {
+      "wbs_id": "P33",
+      "name": "냉각수 계통 압력시험·플러싱",
+      "zone_id": "BELLY_BOSH",
+      "start": "2027-02-20",
+      "end": "2027-03-07",
+      "shift": "day",
+      "headcount": 6,
+      "hazards": [],
+      "predecessors": [
+        "P19"
+      ]
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "S1",
+      "type": "sequence",
+      "rule_ids": [
+        "R08",
+        "R07"
+      ],
+      "with": "가상-축로I P22 노복~노흉 내화물 축조 (STACK, ~2027-03-02)",
+      "note": "핵심 장면. 선행 조건에 'P22 완료 후'라고 써 놓고 02-26에 착수 → 순서 위반(금지). 조정안: P22 완료·인원 철수 확인 후(03-03~)로 이동"
+    },
+    {
+      "scenario": "F8",
+      "type": "sop_missing",
+      "rule_ids": [
+        "R04",
+        "R27"
+      ],
+      "with": "SOP-04 가스 배관 연결·기밀시험 표준",
+      "note": "절차에 '작업 전 가스 측정(LEL·O2)'과 '맹판·LOTO 확인' 단계가 빠져 있다 → 결함"
+    },
+    {
+      "scenario": "F8",
+      "type": "sop_missing",
+      "rule_ids": [
+        "R04",
+        "R27"
+      ],
+      "with": "SOP-P34 질소·가스·송풍 라인 복구 연결 작업표준 (작업별)",
+      "note": "작업별 표준서도 같은 핵심 단계(4 작업 전 가스 측정, 5 연결 대상 계통 내부 작업 완료·인원 철수 확인)가 빠져 결함. P33 압력시험은 핵심 단계가 적혀 있어 결함 없음"
+    }
+  ],
+  "note": "원본 가상-배관O_가스라인_복구_작업계획서.hwpx 의 작업을 원청 표준양식(통일 양식)으로 다시 쓴 것",
+  "variant": {
+    "source": "가상-배관O_가스라인_복구_작업계획서.hwpx",
+    "layout": "uniform_template",
+    "headers": [
+      "업체명",
+      "기준 일정 ID",
+      "작업명",
+      "구역",
+      "시작일",
+      "종료일",
+      "주야간",
+      "인원",
+      "위험작업",
+      "선행작업",
+      "비고"
+    ]
+  }
+}

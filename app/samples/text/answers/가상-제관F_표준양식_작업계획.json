@@ -1,0 +1,84 @@
+{
+  "file": "가상-제관F_표준양식_작업계획.txt",
+  "contractor": "가상-제관F",
+  "format": "xlsx",
+  "tasks": [
+    {
+      "wbs_id": "P10",
+      "name": "상승관·하강관 가스 배관 절단·보수",
+      "zone_id": "DOWNCOMER",
+      "start": "2026-11-15",
+      "end": "2027-01-11",
+      "shift": "day",
+      "headcount": 10,
+      "hazards": [
+        "gas",
+        "height",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P05"
+      ]
+    },
+    {
+      "wbs_id": "P25",
+      "name": "제진기·가스청정설비 보수·교체",
+      "zone_id": "GCP",
+      "start": "2026-11-22",
+      "end": "2027-02-20",
+      "shift": null,
+      "headcount": 14,
+      "hazards": [
+        "confined",
+        "gas",
+        "heavy_lift",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P05"
+      ]
+    },
+    {
+      "wbs_id": null,
+      "name": "보수 자재 가공(야드)",
+      "zone_id": "YARD",
+      "start": "2026-11-12",
+      "end": "2026-12-31",
+      "shift": "day",
+      "headcount": 5,
+      "hazards": [
+        "hot_work"
+      ],
+      "predecessors": []
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "S4",
+      "type": "hot_gas",
+      "rule_ids": [
+        "R04"
+      ],
+      "with": "원청-정비 P05 가스 계통 차단·블리더 방산·질소 퍼지 (DOWNCOMER, 2026-11-13~11-15)",
+      "note": "하강관 절단을 기준(11-17)보다 이틀 앞당겨 퍼지 중 화기 — 금지"
+    }
+  ],
+  "note": "원본 가상-제관F_하강관_가스청정_보수계획.pdf 의 작업을 원청 표준양식(통일 양식)으로 다시 쓴 것",
+  "variant": {
+    "source": "가상-제관F_하강관_가스청정_보수계획.pdf",
+    "layout": "uniform_template",
+    "headers": [
+      "업체명",
+      "기준 일정 ID",
+      "작업명",
+      "구역",
+      "시작일",
+      "종료일",
+      "주야간",
+      "인원",
+      "위험작업",
+      "선행작업",
+      "비고"
+    ]
+  }
+}

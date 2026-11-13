@@ -1,0 +1,76 @@
+{
+  "file": "가상-비계N_표준양식_작업계획.txt",
+  "contractor": "가상-비계N",
+  "format": "xlsx",
+  "tasks": [
+    {
+      "wbs_id": "P30",
+      "name": "노체 철피 외부 비계 설치",
+      "zone_id": "SHELL",
+      "start": "2026-12-28",
+      "end": "2027-01-05",
+      "shift": "day",
+      "headcount": 12,
+      "hazards": [
+        "height"
+      ],
+      "predecessors": [
+        "P06"
+      ]
+    },
+    {
+      "wbs_id": "P30",
+      "name": "노흉 내부 작업 비계 해체",
+      "zone_id": "STACK",
+      "start": "2027-03-01",
+      "end": "2027-03-05",
+      "shift": "day",
+      "headcount": 8,
+      "hazards": [
+        "confined",
+        "height"
+      ],
+      "predecessors": []
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "same_zone",
+      "type": "same_time_zone",
+      "rule_ids": [
+        "R17",
+        "R16"
+      ],
+      "with": "가상-축로I P22 노복~노흉 내화물 축조 (STACK, ~2027-03-02)",
+      "note": "축조가 끝나기 전(03-01~03-02) 같은 노흉에서 비계 해체 — 금지"
+    },
+    {
+      "scenario": "S3-변형",
+      "type": "same_time_zone",
+      "rule_ids": [
+        "R18",
+        "R20"
+      ],
+      "with": "가상-양중C P17 신 철피 링블록 반입·설치(대형 인양) (SHELL, 2026-12-27~2027-01-03)",
+      "note": "링블록 인양 중 같은 철피 외부에서 비계 설치(고소) — 인양 시간대 분리"
+    }
+  ],
+  "note": "원본 가상-비계N_비계_설치해체_작업계획.hwpx 의 작업을 원청 표준양식(통일 양식)으로 다시 쓴 것",
+  "variant": {
+    "source": "가상-비계N_비계_설치해체_작업계획.hwpx",
+    "layout": "uniform_template",
+    "headers": [
+      "업체명",
+      "기준 일정 ID",
+      "작업명",
+      "구역",
+      "시작일",
+      "종료일",
+      "주야간",
+      "인원",
+      "위험작업",
+      "선행작업",
+      "비고"
+    ]
+  }
+}
