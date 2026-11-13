@@ -1,0 +1,84 @@
+{
+  "file": "가상-축로I_표준양식_작업계획.txt",
+  "contractor": "가상-축로I",
+  "format": "xlsx",
+  "tasks": [
+    {
+      "wbs_id": "P20",
+      "name": "노저 카본블록·세라믹컵 축조(연와정초)",
+      "zone_id": "HEARTH",
+      "start": "2027-01-21",
+      "end": "2027-02-15",
+      "shift": "day",
+      "headcount": 18,
+      "hazards": [
+        "confined"
+      ],
+      "predecessors": [
+        "P16",
+        "P18"
+      ]
+    },
+    {
+      "wbs_id": "P21",
+      "name": "풍구 레벨 내화물·풍구·냉각기 신설",
+      "zone_id": "TUYERE",
+      "start": "2027-02-10",
+      "end": "2027-02-25",
+      "shift": "day",
+      "headcount": 14,
+      "hazards": [
+        "confined",
+        "heavy_lift"
+      ],
+      "predecessors": [
+        "P20"
+      ]
+    },
+    {
+      "wbs_id": "P22",
+      "name": "노복~노흉 내화물 축조·캐스터블",
+      "zone_id": "STACK",
+      "start": "2027-02-05",
+      "end": "2027-03-02",
+      "shift": "day",
+      "headcount": 22,
+      "hazards": [
+        "confined",
+        "height"
+      ],
+      "predecessors": [
+        "P19"
+      ]
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "S2",
+      "type": "vertical",
+      "rule_ids": [
+        "R16"
+      ],
+      "with": "가상-기계J P23 (TOP, 2027-01-06~02-20)",
+      "note": "기준 일정 그대로여도 노정 설치 아래 노저 축조가 겹친다 — 조정 대상 표시"
+    }
+  ],
+  "note": "원본 가상-축로I_노체축조_주간계획.xlsx 의 작업을 원청 표준양식(통일 양식)으로 다시 쓴 것",
+  "variant": {
+    "source": "가상-축로I_노체축조_주간계획.xlsx",
+    "layout": "uniform_template",
+    "headers": [
+      "업체명",
+      "기준 일정 ID",
+      "작업명",
+      "구역",
+      "시작일",
+      "종료일",
+      "주야간",
+      "인원",
+      "위험작업",
+      "선행작업",
+      "비고"
+    ]
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "file": "가상-기계J_표준양식_작업계획.txt",
+  "contractor": "가상-기계J",
+  "format": "xlsx",
+  "tasks": [
+    {
+      "wbs_id": null,
+      "name": "벨리스 탑 부품 야드 반입·검수",
+      "zone_id": "YARD",
+      "start": "2026-12-20",
+      "end": "2027-01-05",
+      "shift": "day",
+      "headcount": 6,
+      "hazards": [
+        "heavy_lift"
+      ],
+      "predecessors": []
+    },
+    {
+      "wbs_id": "P23",
+      "name": "노정 장입설비(벨리스 탑) 설치",
+      "zone_id": "TOP",
+      "start": "2027-01-06",
+      "end": "2027-02-20",
+      "shift": "day",
+      "headcount": 12,
+      "hazards": [
+        "heavy_lift",
+        "height",
+        "hot_work"
+      ],
+      "predecessors": [
+        "P17"
+      ]
+    },
+    {
+      "wbs_id": null,
+      "name": "장입 구동부 시운전",
+      "zone_id": "TOP",
+      "start": "2027-02-18",
+      "end": "2027-02-20",
+      "shift": "day",
+      "headcount": 4,
+      "hazards": [],
+      "predecessors": []
+    }
+  ],
+  "expected_conflicts": [
+    {
+      "scenario": "S2",
+      "type": "vertical",
+      "rule_ids": [
+        "R16",
+        "R18"
+      ],
+      "with": "가상-축로I P20 (HEARTH, 2027-01-21~02-15)",
+      "note": "노정 고소·인양 바로 아래 노저 축조 — 방호선반·하부 출입금지 기재 없으면 금지"
+    }
+  ],
+  "note": "원본 가상-기계J_장입설비_설치계획서.pdf 의 작업을 원청 표준양식(통일 양식)으로 다시 쓴 것",
+  "variant": {
+    "source": "가상-기계J_장입설비_설치계획서.pdf",
+    "layout": "uniform_template",
+    "headers": [
+      "업체명",
+      "기준 일정 ID",
+      "작업명",
+      "구역",
+      "시작일",
+      "종료일",
+      "주야간",
+      "인원",
+      "위험작업",
+      "선행작업",
+      "비고"
+    ]
+  }
+}
